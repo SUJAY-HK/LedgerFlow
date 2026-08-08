@@ -91,6 +91,10 @@ public class User {
         wallet.assignTo(this);
     }
 
+    public void changeName(String name) {
+        this.name = name;
+    }
+
     public UUID getId() {
         return id;
     }

@@ -32,6 +32,11 @@ class UserWalletRepositoryTest {
         assertThat(savedUser.getId()).isNotNull();
         assertThat(savedUser.getCreatedAt()).isNotNull();
         assertThat(savedUser.getUpdatedAt()).isNotNull();
+
+        savedUser.changeName("Ada King");
+        User updatedUser = userRepository.saveAndFlush(savedUser);
+
+        assertThat(updatedUser.getUpdatedAt()).isAfterOrEqualTo(updatedUser.getCreatedAt());
     }
 
     @Test
