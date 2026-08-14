@@ -1,0 +1,25 @@
+meta {
+  name: RegisterUser
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:8080/api/v1/auth/register
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "LedgerAdmin",
+    "email": "lgf@email.com",
+    "phone": "9876543200",
+    "password": "12345678"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
