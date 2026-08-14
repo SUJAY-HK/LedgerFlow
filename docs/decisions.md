@@ -1,5 +1,35 @@
 # Architecture and Design Decisions
 
+## Sprint 3 Authentication Decisions
+
+### DTOs at the HTTP boundary
+
+Controllers accept and return dedicated DTOs, not JPA entities. This permits request-specific validation, keeps persistence mappings from becoming a public contract, and prevents accidental exposure of fields such as `passwordHash`. It also lets the API evolve independently of the database model.
+
+### Password hashing
+
+Passwords are one-way BCrypt hashes via Spring Security's `BCryptPasswordEncoder`; they are never encrypted for later recovery, logged, or returned. BCrypt is an adaptive password hash designed for password storage. Login uses `PasswordEncoder.matches(rawPassword, storedHash)`.
+
+### JWT and stateless bearer authentication
+
+LedgerFlow issues signed, short-lived JWT access tokens. A token has standard `sub` (the user's UUID), `iat`, `exp`, and `iss` claims only. JWT payloads are encoded, not encrypted, so no password, hash, or other sensitive data is included. Spring Security's resource-server JWT support validates bearer tokens and sets the authenticated principal; sessions are disabled. This avoids a custom filter and keeps token validation in the current supported integration.
+
+### Token lifetime and secret handling
+
+The access-token expiration is externally configured through `JWT_EXPIRATION` (15 minutes in the development configuration). The HMAC signing secret is required from `JWT_SECRET`; it is never committed. A sufficiently long random secret must be provisioned by each deployment environment and rotated through deployment configuration.
+
+### Authentication provider scope
+
+Login uses the application service to fetch a user and compare its BCrypt hash. `UserDetailsService` and `DaoAuthenticationProvider` are Spring Security's database-backed username/password mechanism, but are not needed for this JSON login endpoint. The resource server authenticates JWTs after login. A future form-login or reusable username/password authentication flow can add a `UserDetailsService`/`DaoAuthenticationProvider` without changing this API.
+
+### Transactional registration
+
+Registration is one transaction because the business invariant is exactly one wallet for every new user. A wallet failure rolls back the user insert as well as the wallet work; a transaction annotation is verified by an integration test that forces wallet provisioning to fail.
+
+### Status-code choices
+
+Registration returns `201 Created`; a duplicate email returns `409 Conflict`; DTO validation returns `400 Bad Request`. Both unknown-email and wrong-password login attempts return `401 Unauthorized` with the same generic message, avoiding unnecessary account-existence disclosure. Missing or invalid bearer tokens also return `401`.
+
 ## Sprint 2 Design Decisions
 
 ### 1. ID Strategy
