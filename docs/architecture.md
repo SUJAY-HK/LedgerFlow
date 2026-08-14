@@ -1,5 +1,58 @@
 # LedgerFlow Architecture
 
+## Authentication Architecture
+
+### Registration
+
+```text
+                    ┌─────────────────────┐
+                    │       Client        │
+                    │ Postman / Frontend  │
+                    └──────────┬──────────┘
+                               │ HTTP request
+                               ▼
+                    ┌─────────────────────┐
+                    │     Controller      │
+                    │  AuthController     │
+                    └──────────┬──────────┘
+                               │ DTO
+                               ▼
+                    ┌─────────────────────┐
+                    │      Service        │
+                    │   AuthService       │
+                    └───────┬─────┬───────┘
+                            │     │
+                  ┌─────────┘     └──────────┐
+                  ▼                          ▼
+        ┌──────────────────┐       ┌─────────────────┐
+        │ UserRepository   │       │ PasswordEncoder │
+        └────────┬─────────┘       └─────────────────┘
+                 │
+                 ▼
+        ┌──────────────────┐
+        │    PostgreSQL    │
+        │ User + Wallet    │
+        └──────────────────┘
+```
+
+`AuthService.register` is the transaction boundary: the user and its initial wallet are saved together, or the complete operation is rolled back. Controllers only translate HTTP requests into validated DTOs and delegate business work to services.
+
+### Login and authenticated requests
+
+```text
+Client (email + password) → AuthController → AuthService
+                                      ├── UserRepository
+                                      ├── PasswordEncoder
+                                      └── JwtService → signed JWT
+
+Client (Authorization: Bearer <JWT>) → Spring Security resource server
+                                     → signature and expiry validation
+                                     → SecurityContext authenticated principal
+                                     → protected controller, e.g. GET /api/v1/users/me
+```
+
+JWT authentication is stateless: no server-side HTTP session is created. Spring Security's resource-server support performs bearer-token extraction and validation; LedgerFlow supplies the signing/verification configuration and does not maintain a custom JWT filter.
+
 ## Current Domain Model
 
 ```text
