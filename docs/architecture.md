@@ -53,6 +53,26 @@ Client (Authorization: Bearer <JWT>) → Spring Security resource server
 
 JWT authentication is stateless: no server-side HTTP session is created. Spring Security's resource-server support performs bearer-token extraction and validation; LedgerFlow supplies the signing/verification configuration and does not maintain a custom JWT filter.
 
+## Wallet Read Architecture
+
+```text
+Client
+  │ Authorization: Bearer <JWT>
+  ▼
+Spring Security resource server
+  │ authenticated Jwt principal (sub = user UUID)
+  ▼
+WalletController
+  ▼
+WalletService
+  ▼
+WalletRepository
+  ▼
+Wallet / PostgreSQL
+```
+
+The controller extracts only the trusted JWT subject and passes it to `WalletService`. It never accepts a client-supplied wallet or user identifier, and never accesses a repository or changes a balance. `WalletService` finds the wallet by that user ID and verifies ownership before mapping it to an API DTO. This ensures a request authenticated as User A can retrieve only User A's wallet.
+
 ## Current Domain Model
 
 ```text

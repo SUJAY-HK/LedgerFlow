@@ -30,6 +30,28 @@ Registration is one transaction because the business invariant is exactly one wa
 
 Registration returns `201 Created`; a duplicate email returns `409 Conflict`; DTO validation returns `400 Bad Request`. Both unknown-email and wrong-password login attempts return `401 Unauthorized` with the same generic message, avoiding unnecessary account-existence disclosure. Missing or invalid bearer tokens also return `401`.
 
+## Sprint 4 Wallet API Decisions
+
+### Current-user identity and endpoint shape
+
+Wallet endpoints do not accept `userId` because the authenticated JWT subject is the trusted server-side identity. They also do not accept `walletId`: this is a current-user API, so the server derives the user's sole wallet rather than trusting a client ownership claim. This prevents an insecure direct-object-reference path before one is needed.
+
+### DTOs and money representation
+
+Wallet JPA entities are not returned directly. `WalletResponse` and `WalletBalanceResponse` provide stable, intentionally limited API contracts. Balances remain `BigDecimal` and are normalized to two decimal places in responses, matching `NUMERIC(19,2)` and INR paise. These read endpoints take no monetary input, so they do not introduce arbitrary client decimal precision or rounding rules.
+
+### Wallet status and reads
+
+`ACTIVE` wallets are normal. `RESTRICTED` (the domain's current equivalent of blocked) and `CLOSED` wallets remain readable, so clients can show balance and historical state; their status makes clear that future money operations must be refused. No state is an authorization failure for a read in Sprint 4, so no `WalletInactiveException` is needed yet. A missing wallet is a genuine `404` invariant failure.
+
+### Read-only transactions
+
+Wallet retrieval methods use `@Transactional(readOnly = true)`. This expresses their non-mutating intent and lets the transaction provider apply applicable read optimizations, while not treating `readOnly` as a security barrier. The service still performs no writes.
+
+### Full wallet and balance endpoints
+
+`GET /wallet` is the full current-wallet resource, including ID and lifecycle status. `GET /wallet/balance` is deliberately smaller for balance-only clients. Separate response contracts let the wallet resource evolve without forcing such clients to consume unrelated fields.
+
 ## Sprint 2 Design Decisions
 
 ### 1. ID Strategy

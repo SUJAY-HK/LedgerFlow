@@ -66,6 +66,44 @@ Requires `Authorization: Bearer <accessToken>`.
 
 Response — `200 OK`: the same safe user representation as registration. Missing, malformed, expired, or invalid tokens produce `401 Unauthorized`.
 
+## Wallet
+
+Wallet identity is derived from the bearer token's authenticated user. These current-user endpoints deliberately accept neither a `userId` nor a `walletId` from the client.
+
+### `GET /api/v1/wallet`
+
+Requires `Authorization: Bearer <accessToken>`.
+
+Response — `200 OK`:
+
+```json
+{
+  "walletId": "44a3e5c8-2e58-4e25-a1be-8dc9f6c0c0e0",
+  "balance": 0.00,
+  "currency": "INR",
+  "status": "ACTIVE"
+}
+```
+
+`401 Unauthorized` is returned for a missing, invalid, or expired token. `404 Not Found` means the authenticated user unexpectedly has no wallet. Wallets in `ACTIVE`, `RESTRICTED`, and `CLOSED` states remain readable in this sprint; status tells clients whether it is available for later money operations.
+
+### `GET /api/v1/wallet/balance`
+
+Requires `Authorization: Bearer <accessToken>`.
+
+Response — `200 OK`:
+
+```json
+{
+  "balance": 0.00,
+  "currency": "INR"
+}
+```
+
+It uses the same `401` and `404` behavior as `GET /api/v1/wallet`.
+
+Both endpoints are intentional: `/wallet` is the evolving wallet resource representation, while `/wallet/balance` is a smaller, purpose-specific response for screens or jobs that only need a current monetary amount. This avoids coupling balance consumers to unrelated wallet fields while retaining a full resource endpoint.
+
 ## Errors
 
 All application errors use this shape:
