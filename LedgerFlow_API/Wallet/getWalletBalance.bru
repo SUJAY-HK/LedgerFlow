@@ -1,0 +1,20 @@
+meta {
+  name: getWalletBalance
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/wallet/balance
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: 
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
