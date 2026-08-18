@@ -30,6 +30,11 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", exception.getMessage(), request);
     }
 
+    @ExceptionHandler(WalletNotFoundException.class)
+    ResponseEntity<ErrorResponse> handleWalletNotFound(WalletNotFoundException exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", exception.getMessage(), request);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException exception, HttpServletRequest request) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();

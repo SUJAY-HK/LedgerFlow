@@ -76,6 +76,11 @@ public class Wallet {
         this.user = user;
     }
 
+    /** Changes lifecycle state; balance mutations remain outside the entity's public API for Sprint 4. */
+    public void changeStatus(WalletStatus status) {
+        this.status = status;
+    }
+
     public UUID getId() {
         return id;
     }
