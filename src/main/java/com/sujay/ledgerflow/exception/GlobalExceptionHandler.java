@@ -35,6 +35,31 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", exception.getMessage(), request);
     }
 
+    @ExceptionHandler(RecipientNotFoundException.class)
+    ResponseEntity<ErrorResponse> handleRecipientNotFound(RecipientNotFoundException exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "RECIPIENT_NOT_FOUND", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(TransactionNotFoundException.class)
+    ResponseEntity<ErrorResponse> handleTransactionNotFound(TransactionNotFoundException exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    ResponseEntity<ErrorResponse> handleInsufficientBalance(InsufficientBalanceException exception, HttpServletRequest request) {
+        return response(HttpStatus.UNPROCESSABLE_ENTITY, "INSUFFICIENT_BALANCE", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler({InvalidTransferException.class, IllegalArgumentException.class})
+    ResponseEntity<ErrorResponse> handleInvalidTransfer(RuntimeException exception, HttpServletRequest request) {
+        return response(HttpStatus.BAD_REQUEST, "INVALID_TRANSFER", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(WalletTransferNotAllowedException.class)
+    ResponseEntity<ErrorResponse> handleWalletTransferNotAllowed(WalletTransferNotAllowedException exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, "WALLET_TRANSFER_NOT_ALLOWED", exception.getMessage(), request);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException exception, HttpServletRequest request) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();

@@ -104,6 +104,40 @@ It uses the same `401` and `404` behavior as `GET /api/v1/wallet`.
 
 Both endpoints are intentional: `/wallet` is the evolving wallet resource representation, while `/wallet/balance` is a smaller, purpose-specific response for screens or jobs that only need a current monetary amount. This avoids coupling balance consumers to unrelated wallet fields while retaining a full resource endpoint.
 
+## Transfers
+
+### `POST /api/v1/transfers`
+
+Requires `Authorization: Bearer <accessToken>`. The bearer token identifies the sender; the request deliberately contains no sender ID or wallet ID.
+
+Request:
+
+```json
+{
+  "recipientId": "44a3e5c8-2e58-4e25-a1be-8dc9f6c0c0e0",
+  "amount": 500.00
+}
+```
+
+Response — `201 Created`:
+
+```json
+{
+  "transactionId": "b5045dca-cbd4-4c59-abef-a007dd960879",
+  "recipientId": "44a3e5c8-2e58-4e25-a1be-8dc9f6c0c0e0",
+  "amount": 500.00,
+  "currency": "INR",
+  "status": "COMPLETED",
+  "createdAt": "2026-09-05T12:00:00Z"
+}
+```
+
+Amounts must be positive and contain no more than two decimal places; values such as `500.123` are rejected rather than rounded. Sender and recipient must differ, both wallets must be `ACTIVE`, and the sender must have sufficient balance. Typical failures are `400 VALIDATION_FAILED` or `INVALID_TRANSFER`, `404 RECIPIENT_NOT_FOUND`, `409 WALLET_TRANSFER_NOT_ALLOWED`, and `422 INSUFFICIENT_BALANCE`. A failed transfer changes neither wallet and creates no transaction record.
+
+### `GET /api/v1/transfers/{transactionId}`
+
+Requires `Authorization: Bearer <accessToken>`. Returns `200 OK` with the transfer response above only when the authenticated user is its sender or recipient. All other callers receive `404 TRANSACTION_NOT_FOUND`, preventing object-ID guessing from disclosing another user's transfer.
+
 ## Errors
 
 All application errors use this shape:

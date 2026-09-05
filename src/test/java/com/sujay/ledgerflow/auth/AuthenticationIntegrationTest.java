@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.sujay.ledgerflow.repository.UserRepository;
+import com.sujay.ledgerflow.repository.TransactionRepository;
 import com.sujay.ledgerflow.repository.WalletRepository;
 import com.sujay.ledgerflow.security.JwtService;
 import com.sujay.ledgerflow.user.User;
@@ -44,6 +45,9 @@ class AuthenticationIntegrationTest {
     private WalletRepository walletRepository;
 
     @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
     private JwtService jwtService;
 
     @Autowired
@@ -51,6 +55,7 @@ class AuthenticationIntegrationTest {
 
     @BeforeEach
     void clearDatabase() {
+        transactionRepository.deleteAll();
         walletRepository.deleteAll();
         userRepository.deleteAll();
     }
