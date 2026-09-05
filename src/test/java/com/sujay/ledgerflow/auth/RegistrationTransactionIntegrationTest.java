@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doThrow;
 
 import com.sujay.ledgerflow.dto.RegisterRequest;
 import com.sujay.ledgerflow.repository.UserRepository;
+import com.sujay.ledgerflow.repository.TransactionRepository;
 import com.sujay.ledgerflow.repository.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,11 +27,15 @@ class RegistrationTransactionIntegrationTest {
     @Autowired
     private WalletRepository walletRepository;
 
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     @MockitoBean
     private WalletProvisioner walletProvisioner;
 
     @BeforeEach
     void clearDatabase() {
+        transactionRepository.deleteAll();
         walletRepository.deleteAll();
         userRepository.deleteAll();
     }

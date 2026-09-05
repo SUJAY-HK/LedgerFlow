@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sujay.ledgerflow.auth.AuthService;
 import com.sujay.ledgerflow.dto.RegisterRequest;
 import com.sujay.ledgerflow.repository.UserRepository;
+import com.sujay.ledgerflow.repository.TransactionRepository;
 import com.sujay.ledgerflow.repository.WalletRepository;
 import com.sujay.ledgerflow.security.JwtService;
 import com.sujay.ledgerflow.user.User;
@@ -35,8 +36,12 @@ class WalletApiIntegrationTest {
     @Autowired
     private WalletRepository walletRepository;
 
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     @BeforeEach
     void clearDatabase() {
+        transactionRepository.deleteAll();
         walletRepository.deleteAll();
         userRepository.deleteAll();
     }
