@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 import com.sujay.ledgerflow.exception.WalletNotFoundException;
 import com.sujay.ledgerflow.mapper.WalletMapper;
 import com.sujay.ledgerflow.repository.WalletRepository;
-import com.sujay.ledgerflow.user.User;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,9 +25,6 @@ class WalletServiceTest {
     @Mock
     private WalletRepository walletRepository;
 
-    @Mock
-    private User user;
-
     private WalletService walletService;
 
     @BeforeEach
@@ -38,7 +34,7 @@ class WalletServiceTest {
 
     @Test
     void returnsActiveWalletForAuthenticatedUser() {
-        Wallet wallet = ownedWallet(new BigDecimal("1000.00"), WalletStatus.ACTIVE);
+        Wallet wallet = walletWith(new BigDecimal("1000.00"), WalletStatus.ACTIVE);
         when(walletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
         WalletResponse response = walletService.getCurrentUserWallet(USER_ID);
@@ -56,22 +52,10 @@ class WalletServiceTest {
                 .isInstanceOf(WalletNotFoundException.class);
     }
 
-    @Test
-    void rejectsWalletWhoseOwnerDoesNotMatchAuthenticatedUser() {
-        User anotherUser = org.mockito.Mockito.mock(User.class);
-        when(anotherUser.getId()).thenReturn(UUID.randomUUID());
-        Wallet wallet = new Wallet(BigDecimal.ZERO);
-        wallet.assignTo(anotherUser);
-        when(walletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
-
-        assertThatThrownBy(() -> walletService.getCurrentUserWallet(USER_ID))
-                .isInstanceOf(WalletNotFoundException.class);
-    }
-
     @ParameterizedTest
     @EnumSource(value = WalletStatus.class, names = {"RESTRICTED", "CLOSED"})
     void restrictedAndClosedWalletsRemainReadable(WalletStatus status) {
-        Wallet wallet = ownedWallet(BigDecimal.ZERO, status);
+        Wallet wallet = walletWith(BigDecimal.ZERO, status);
         when(walletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
         WalletResponse response = walletService.getCurrentUserWallet(USER_ID);
@@ -81,7 +65,7 @@ class WalletServiceTest {
 
     @Test
     void mapsBalanceWithExactTwoDecimalPlaces() {
-        Wallet wallet = ownedWallet(new BigDecimal("125.50"), WalletStatus.ACTIVE);
+        Wallet wallet = walletWith(new BigDecimal("125.50"), WalletStatus.ACTIVE);
         when(walletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
         WalletBalanceResponse response = walletService.getCurrentUserBalance(USER_ID);
@@ -91,10 +75,8 @@ class WalletServiceTest {
         assertThat(response.currency()).isEqualTo(WalletCurrency.INR);
     }
 
-    private Wallet ownedWallet(BigDecimal balance, WalletStatus status) {
-        when(user.getId()).thenReturn(USER_ID);
+    private Wallet walletWith(BigDecimal balance, WalletStatus status) {
         Wallet wallet = new Wallet(balance);
-        wallet.assignTo(user);
         wallet.changeStatus(status);
         return wallet;
     }

@@ -19,32 +19,17 @@ public class WalletService {
 
     @Transactional(readOnly = true)
     public WalletResponse getCurrentUserWallet(UUID userId) {
-        Wallet wallet = findOwnedWallet(userId);
-        verifyReadable(wallet);
+        Wallet wallet = findWalletForUser(userId);
         return walletMapper.toResponse(wallet);
     }
 
     @Transactional(readOnly = true)
     public WalletBalanceResponse getCurrentUserBalance(UUID userId) {
-        Wallet wallet = findOwnedWallet(userId);
-        verifyReadable(wallet);
+        Wallet wallet = findWalletForUser(userId);
         return walletMapper.toBalanceResponse(wallet);
     }
 
-    private Wallet findOwnedWallet(UUID userId) {
-        Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(WalletNotFoundException::new);
-        // Derived lookup provides the primary guarantee. Retain this check as defense in depth for repository changes.
-        if (wallet.getUser() == null || !userId.equals(wallet.getUser().getId())) {
-            throw new WalletNotFoundException();
-        }
-        return wallet;
-    }
-
-    private void verifyReadable(Wallet wallet) {
-        switch (wallet.getStatus()) {
-            case ACTIVE, RESTRICTED, CLOSED -> {
-                // All lifecycle states are readable in Sprint 4; only future money operations will differ.
-            }
-        }
+    private Wallet findWalletForUser(UUID userId) {
+        return walletRepository.findByUserId(userId).orElseThrow(WalletNotFoundException::new);
     }
 }

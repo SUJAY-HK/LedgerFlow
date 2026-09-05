@@ -71,7 +71,7 @@ WalletRepository
 Wallet / PostgreSQL
 ```
 
-The controller extracts only the trusted JWT subject and passes it to `WalletService`. It never accepts a client-supplied wallet or user identifier, and never accesses a repository or changes a balance. `WalletService` finds the wallet by that user ID and verifies ownership before mapping it to an API DTO. This ensures a request authenticated as User A can retrieve only User A's wallet.
+The controller extracts only the trusted JWT subject and passes it to `WalletService`. It never accepts a client-supplied wallet or user identifier, and never accesses a repository or changes a balance. `WalletService` uses `findByUserId` to retrieve the wallet for that authenticated user before mapping it to an API DTO. This repository predicate is the ownership guarantee: a request authenticated as User A can retrieve only a wallet whose stored `user_id` is User A's ID.
 
 ## Current Domain Model
 
