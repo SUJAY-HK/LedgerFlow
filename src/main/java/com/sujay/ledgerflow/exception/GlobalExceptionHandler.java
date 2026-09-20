@@ -55,9 +55,19 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.BAD_REQUEST, "INVALID_TRANSFER", exception.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidDepositException.class)
+    ResponseEntity<ErrorResponse> handleInvalidDeposit(InvalidDepositException exception, HttpServletRequest request) {
+        return response(HttpStatus.BAD_REQUEST, "INVALID_DEPOSIT", exception.getMessage(), request);
+    }
+
     @ExceptionHandler(WalletTransferNotAllowedException.class)
     ResponseEntity<ErrorResponse> handleWalletTransferNotAllowed(WalletTransferNotAllowedException exception, HttpServletRequest request) {
         return response(HttpStatus.CONFLICT, "WALLET_TRANSFER_NOT_ALLOWED", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(WalletDepositNotAllowedException.class)
+    ResponseEntity<ErrorResponse> handleWalletDepositNotAllowed(WalletDepositNotAllowedException exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, "WALLET_DEPOSIT_NOT_ALLOWED", exception.getMessage(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

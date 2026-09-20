@@ -7,7 +7,7 @@ meta {
 post {
   url: {{BASE_URL}}/api/v1/auth/login
   body: json
-  auth: inherit
+  auth: basic
 }
 
 body:json {
@@ -17,13 +17,17 @@ body:json {
   }
 }
 
-settings {
-  encodeUrl: true
-  timeout: 0
+vars:pre-request {
+  BASE_URL: http://localhost:8080/
 }
 
 script:post-response {
   if (res.status === 200) {
     bru.setEnvVar("ACCESS_TOKEN", res.body.accessToken);
   }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
 }
