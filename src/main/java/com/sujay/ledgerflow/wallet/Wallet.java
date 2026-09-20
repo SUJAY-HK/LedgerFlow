@@ -88,22 +88,22 @@ public class Wallet {
 
     /** Debits a validated amount while preserving the non-negative balance invariant. */
     public void debit(BigDecimal amount) {
-        validateTransferAmount(amount);
+        validateMovementAmount(amount);
         if (balance.compareTo(amount) < 0) {
             throw new InsufficientBalanceException();
         }
         balance = balance.subtract(amount).setScale(2, RoundingMode.UNNECESSARY);
     }
 
-    /** Credits a validated amount. Callers must have checked the wallet is transferable. */
+    /** Credits a validated money-movement amount. Callers enforce the operation's status policy. */
     public void credit(BigDecimal amount) {
-        validateTransferAmount(amount);
+        validateMovementAmount(amount);
         balance = balance.add(amount).setScale(2, RoundingMode.UNNECESSARY);
     }
 
-    private void validateTransferAmount(BigDecimal amount) {
+    private void validateMovementAmount(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0 || amount.scale() > 2) {
-            throw new IllegalArgumentException("Transfer amount must be positive with at most two decimal places");
+            throw new IllegalArgumentException("Amount must be positive with at most two decimal places");
         }
     }
 

@@ -104,6 +104,34 @@ It uses the same `401` and `404` behavior as `GET /api/v1/wallet`.
 
 Both endpoints are intentional: `/wallet` is the evolving wallet resource representation, while `/wallet/balance` is a smaller, purpose-specific response for screens or jobs that only need a current monetary amount. This avoids coupling balance consumers to unrelated wallet fields while retaining a full resource endpoint.
 
+### `POST /api/v1/wallet/deposits`
+
+Simulates money entering the authenticated user's wallet from an external source. Requires `Authorization: Bearer <accessToken>`; the request deliberately accepts neither a `userId` nor a `walletId`.
+
+Request:
+
+```json
+{
+  "amount": 1000.00
+}
+```
+
+Response — `201 Created`:
+
+```json
+{
+  "transactionId": "b5045dca-cbd4-4c59-abef-a007dd960879",
+  "type": "DEPOSIT",
+  "amount": 1000.00,
+  "currency": "INR",
+  "status": "COMPLETED",
+  "createdAt": "2026-09-12T12:00:00Z",
+  "balance": 1000.00
+}
+```
+
+Amounts must be positive and contain no more than two decimal places; `100.999` is rejected rather than rounded. Only `ACTIVE` wallets can receive a deposit. A successful deposit atomically credits the wallet and creates a `DEPOSIT` transaction record; if either part fails, neither change is committed. This endpoint models simulated external funding only—it is not a payment-gateway confirmation endpoint.
+
 ## Transfers
 
 ### `POST /api/v1/transfers`

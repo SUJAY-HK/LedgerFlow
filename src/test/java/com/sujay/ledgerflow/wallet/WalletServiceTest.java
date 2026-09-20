@@ -2,11 +2,13 @@ package com.sujay.ledgerflow.wallet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.sujay.ledgerflow.exception.WalletNotFoundException;
 import com.sujay.ledgerflow.mapper.WalletMapper;
 import com.sujay.ledgerflow.repository.WalletRepository;
+import com.sujay.ledgerflow.transaction.TransactionWriter;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,7 +31,7 @@ class WalletServiceTest {
 
     @BeforeEach
     void setUp() {
-        walletService = new WalletService(walletRepository, new WalletMapper());
+        walletService = new WalletService(walletRepository, new WalletMapper(), mock(TransactionWriter.class));
     }
 
     @Test

@@ -1,6 +1,8 @@
 package com.sujay.ledgerflow.wallet;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,7 +12,9 @@ import com.sujay.ledgerflow.repository.UserRepository;
 import com.sujay.ledgerflow.repository.TransactionRepository;
 import com.sujay.ledgerflow.repository.WalletRepository;
 import com.sujay.ledgerflow.security.JwtService;
+import com.sujay.ledgerflow.transaction.TransactionType;
 import com.sujay.ledgerflow.user.User;
+import org.springframework.http.MediaType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,6 +73,75 @@ class WalletApiIntegrationTest {
     void walletEndpointsRequireJwt() throws Exception {
         mockMvc.perform(get("/api/v1/wallet")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/wallet/balance")).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/wallet/deposits").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":1000.00}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void authenticatedUserCanDepositAndReceiveAnAuditableRecord() throws Exception {
+        User user = register("depositor@example.com");
+
+        mockMvc.perform(deposit(user, "1000.00"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.transactionId").isNotEmpty())
+                .andExpect(jsonPath("$.type").value("DEPOSIT"))
+                .andExpect(jsonPath("$.amount").value(1000.0))
+                .andExpect(jsonPath("$.currency").value("INR"))
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.balance").value(1000.0));
+
+        Wallet wallet = walletRepository.findByUserId(user.getId()).orElseThrow();
+        assertThat(wallet.getBalance()).isEqualByComparingTo("1000.00");
+        assertThat(transactionRepository.count()).isEqualTo(1);
+        assertThat(transactionRepository.findAll().getFirst().getType()).isEqualTo(TransactionType.DEPOSIT);
+        assertThat(transactionRepository.findAll().getFirst().getSenderWallet()).isNull();
+        assertThat(transactionRepository.findAll().getFirst().getRecipientWallet().getId()).isEqualTo(wallet.getId());
+    }
+
+    @Test
+    void depositRejectsInvalidAmountsWithoutChangingBalanceOrCreatingARecord() throws Exception {
+        User user = register("invalid.deposit@example.com");
+
+        mockMvc.perform(deposit(user, "0.00"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+        mockMvc.perform(deposit(user, "-1.00"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+        mockMvc.perform(deposit(user, "100.999"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("VALIDATION_FAILED"));
+
+        assertThat(walletRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualByComparingTo("0.00");
+        assertThat(transactionRepository.count()).isZero();
+    }
+
+    @Test
+    void depositUsesOnlyTheWalletIdentifiedByTheJwt() throws Exception {
+        User userA = register("deposit.a@example.com");
+        User userB = register("deposit.b@example.com");
+
+        mockMvc.perform(deposit(userA, "250.00")).andExpect(status().isCreated());
+
+        assertThat(walletRepository.findByUserId(userA.getId()).orElseThrow().getBalance()).isEqualByComparingTo("250.00");
+        assertThat(walletRepository.findByUserId(userB.getId()).orElseThrow().getBalance()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    void restrictedAndClosedWalletsCannotReceiveDeposits() throws Exception {
+        User user = register("deposit.status@example.com");
+        Wallet wallet = walletRepository.findByUserId(user.getId()).orElseThrow();
+
+        wallet.changeStatus(WalletStatus.RESTRICTED);
+        walletRepository.saveAndFlush(wallet);
+        mockMvc.perform(deposit(user, "100.00"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("WALLET_DEPOSIT_NOT_ALLOWED"));
+
+        wallet.changeStatus(WalletStatus.CLOSED);
+        walletRepository.saveAndFlush(wallet);
+        mockMvc.perform(deposit(user, "100.00"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error").value("WALLET_DEPOSIT_NOT_ALLOWED"));
+
+        assertThat(walletRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualByComparingTo("0.00");
+        assertThat(transactionRepository.count()).isZero();
     }
 
     @Test
@@ -117,7 +190,8 @@ class WalletApiIntegrationTest {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/v1/wallet'].get").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/wallet/balance'].get").exists());
+                .andExpect(jsonPath("$.paths['/api/v1/wallet/balance'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/wallet/deposits'].post").exists());
     }
 
     private User register(String email) {
@@ -127,5 +201,12 @@ class WalletApiIntegrationTest {
 
     private String tokenFor(User user) {
         return jwtService.generateToken(user.getId()).getTokenValue();
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder deposit(User user, String amount) {
+        return post("/api/v1/wallet/deposits")
+                .header("Authorization", "Bearer " + tokenFor(user))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"amount\":%s}".formatted(amount));
     }
 }

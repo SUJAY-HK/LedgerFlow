@@ -1,14 +1,14 @@
-# Transfer and Transaction Design
+# Money Movement and Transaction Design
 
 ## Model
 
-A **wallet** is the current, mutable INR balance owned by one user. A **transfer** is the business operation that moves one positive amount from one wallet to another. A **transaction** is the persisted audit record of a successfully completed transfer. Sprint 5 intentionally does not implement a double-entry ledger; that is a later concern.
+A **wallet** is the current, mutable INR balance owned by one user. A **deposit** simulates money entering a wallet from an external source; a **transfer** moves money from one LedgerFlow wallet to another. A **transaction** is the immutable audit record of either successfully completed operation. Sprint 5 intentionally does not implement a double-entry ledger; that is a later concern.
 
-The transaction record holds its UUID, sender and recipient wallet relationships, amount, currency, status, and audit timestamps. Currency is retained because it makes the stored amount unambiguous if the product gains more currencies. There is no separate human reference: the UUID transaction ID is sufficient for this internal API. There is also no failure reason because failed synchronous requests are rolled back and do not create a transaction record.
+The transaction record holds its UUID, type, recipient wallet, amount, currency, status, and audit timestamps. A `TRANSFER` also has a sender wallet; a `DEPOSIT` has no sender wallet because its source is simulated external funding rather than another LedgerFlow wallet. Currency is retained because it makes the stored amount unambiguous if the product gains more currencies. There is no separate human reference: the UUID transaction ID is sufficient for this internal API. There is also no failure reason because failed synchronous requests are rolled back and do not create a transaction record.
 
 ## Lifecycle and invariants
 
-The only persisted status in Sprint 5 is `COMPLETED`. A `PENDING` status would suggest asynchronous work that does not exist: debit, credit, and record creation happen in one synchronous database transaction. A failure instead rolls everything back; it is returned as an API error, not persisted as a failed transaction.
+The only persisted status in Sprint 5 is `COMPLETED`. A `PENDING` status would suggest asynchronous work that does not exist: the balance change and record creation happen in one synchronous database transaction. A failure instead rolls everything back; it is returned as an API error, not persisted as a failed transaction.
 
 ```text
 Request → validate → authenticate sender → find recipient → validate wallets
@@ -17,6 +17,21 @@ Request → validate → authenticate sender → find recipient → validate wal
 
 Any failure → ROLLBACK
 ```
+
+```text
+Authenticated deposit request → validate amount → find and lock current wallet
+→ validate ACTIVE status → credit wallet → persist DEPOSIT transaction (COMPLETED) → COMMIT
+
+Any failure → ROLLBACK
+```
+
+Deposit invariants:
+
+- The JWT, never the request body, identifies the wallet to fund.
+- Amount is positive, has at most two decimal places, and is stored as INR `NUMERIC(19,2)` without rounding.
+- Only an `ACTIVE` wallet can receive simulated external funding.
+- A completed deposit credits exactly the recorded amount and persists one `DEPOSIT` transaction atomically.
+- A failure changes no balance and persists no transaction.
 
 Transfer invariants:
 
@@ -32,7 +47,7 @@ Transfer invariants:
 
 ## Transaction boundary and concurrency
 
-`TransferService.transfer` is annotated with `@Transactional`. Both balance changes and `TransactionRepository.save` execute inside that boundary. Therefore, if transaction persistence (or any other step) throws a runtime exception, the database rolls back both managed wallet updates.
+`TransferService.transfer` and `WalletService.deposit` are annotated with `@Transactional`. Their balance changes and `TransactionRepository.save` execute inside the same boundary. Therefore, if transaction persistence (or any other step) throws a runtime exception, the database rolls back every managed wallet update.
 
 The race to avoid is two concurrent `₹800` transfers both reading a `₹1000` wallet and each deciding it has enough balance. The considered approaches were:
 
@@ -43,4 +58,4 @@ The race to avoid is two concurrent `₹800` transfers both reading a `₹1000` 
 | Atomic SQL update | Efficient for one balance predicate, but makes the paired credit and domain model less direct. |
 | Pessimistic write lock | Serializes conflicting money operations at the database, letting the second request re-check the committed balance. |
 
-Sprint 5 chooses JPA `@Lock(LockModeType.PESSIMISTIC_WRITE)`. The service first obtains wallet IDs without loading wallet entities, then locks both rows in deterministic UUID order. The deterministic order also prevents the `A → B` / `B → A` deadlock pattern. Once the locks are held, it validates status and balance, mutates both domain entities, saves the transaction, and commits. This is intentionally database-backed coordination—not Redis or Kafka—and the concurrency integration test verifies that two simultaneous `₹800` transfers from a `₹1000` wallet yield exactly one success and a `₹200` balance.
+Sprint 5 chooses JPA `@Lock(LockModeType.PESSIMISTIC_WRITE)`. A deposit locks its one target wallet; a transfer first obtains wallet IDs without loading wallet entities, then locks both rows in deterministic UUID order. The deterministic order also prevents the `A → B` / `B → A` deadlock pattern. Once the locks are held, the service validates status and balance, mutates the wallet or wallets, saves the transaction, and commits. This is intentionally database-backed coordination—not Redis or Kafka—and the concurrency integration test verifies that two simultaneous `₹800` transfers from a `₹1000` wallet yield exactly one success and a `₹200` balance.

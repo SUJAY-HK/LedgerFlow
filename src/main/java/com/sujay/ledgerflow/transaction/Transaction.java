@@ -21,7 +21,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-/** Immutable business record created only after both wallet mutations are valid. */
+/** Immutable record of a completed deposit or wallet-to-wallet transfer. */
 @Entity
 @Table(name = "wallet_transactions")
 @EntityListeners(AuditingEntityListener.class)
@@ -32,13 +32,18 @@ public class Transaction {
     @Column(nullable = false, updatable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "sender_wallet_id", nullable = false, updatable = false)
+    /** Null for a deposit because its source is simulated external funding, not another LedgerFlow wallet. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_wallet_id", updatable = false)
     private Wallet senderWallet;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "recipient_wallet_id", nullable = false, updatable = false)
     private Wallet recipientWallet;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", nullable = false, length = 20, updatable = false)
+    private TransactionType type;
 
     @Column(nullable = false, precision = 19, scale = 2, updatable = false)
     private BigDecimal amount;
@@ -69,11 +74,22 @@ public class Transaction {
         this.recipientWallet = recipientWallet;
         this.amount = amount;
         this.currency = currency;
+        this.type = TransactionType.TRANSFER;
+    }
+
+    public static Transaction deposit(Wallet recipientWallet, BigDecimal amount, WalletCurrency currency) {
+        Transaction transaction = new Transaction();
+        transaction.recipientWallet = recipientWallet;
+        transaction.amount = amount;
+        transaction.currency = currency;
+        transaction.type = TransactionType.DEPOSIT;
+        return transaction;
     }
 
     public UUID getId() { return id; }
     public Wallet getSenderWallet() { return senderWallet; }
     public Wallet getRecipientWallet() { return recipientWallet; }
+    public TransactionType getType() { return type; }
     public BigDecimal getAmount() { return amount; }
     public WalletCurrency getCurrency() { return currency; }
     public TransactionStatus getStatus() { return status; }
